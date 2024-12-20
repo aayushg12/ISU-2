@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Chart and Statistics Calculator</title>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background-color: #f4f4f4; }
+        h1 { text-align: center; color: #333; }
+        #chartOptions, #dataInput, #stats { margin: 20px; padding: 20px; background: white; border-radius: 8px; box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); }
+        input, textarea, select, button { width: 100%; margin: 10px 0; padding: 10px; border: 1px solid #ddd; border-radius: 4px; }
+        button { background-color: #5cb85c; color: white; border: none; cursor: pointer; }
+        button:hover { background-color: #4cae4c; }
+        #plot { margin: 20px; }
+        #statsOutput { margin-top: 20px; }
+        img { max-width: 100%; height: auto; margin: 20px 0; }
+    </style>
+</head>
+<body>
+
+    <h1>Interactive Chart and Statistics Calculator</h1>
+
+
+    <div id="chartOptions">
+        <label for="chartType">Choose a chart type:</label>
+        <select id="chartType">
+            <option value="pie">Pie Chart</option>
+            <option value="box">Box and Whisker Plot</option>
+            <option value="bar">Bar Graph</option>
+            <option value="scatter">Scatter Plot</option>
+            <option value="lines">Line Graph</option>
+        </select>
+        <button id="createChartButton">Create Chart</button>
+    </div>
+    
+    <div id="dataInput"></div>
+    <div id="plot"></div>
+    
+    <div id="stats">
+        <h3>Statistics Calculator</h3>
+        <textarea id="statsInput" rows="4" placeholder="Enter your data as comma-separated values..."></textarea>
+        <button onclick="calculateStats()">Calculate Statistics</button>
+        <div id="statsOutput"></div>
+    </div>
+
+    <script>
+        document.getElementById('createChartButton').onclick = function() {
+            const chartType = document.getElementById('chartType').value;
+            const dataInput = document.getElementById('dataInput');
+            dataInput.innerHTML = ''; // Clear previous inputs
+
+            if (chartType === 'pie') {
+                dataInput.innerHTML = `
+                    <h3>Pie Chart</h3>
+                    <div id="pieData"></div>
+                    <button onclick="addPieData()">Add Label and Value</button>
+                    <button onclick="generatePieChart()">Generate Pie Chart</button>
+                `;
+            } else if (chartType === 'box') {
+                dataInput.innerHTML = `
+                    <h3>Box and Whisker Plot</h3>
+                    <textarea id="boxData" rows="4" placeholder="Enter your data as comma-separated values..."></textarea>
+                    <button onclick="generateBoxPlot()">Generate Box Plot</button>
+                `;
+            } else if (chartType === 'bar') {
+                dataInput.innerHTML = `
+                    <h3>Bar Graph</h3>
+                    <input type="text" id="barTitle" placeholder="Graph Title">
+                    <input type="text" id="xAxisTitle" placeholder="X Axis Title">
+                    <input type="text" id="yAxisTitle" placeholder="Y Axis Title">
+                    <div id="barData"></div>
+                    <button onclick="addBarData()">Add Category and Value</button>
+                    <button onclick="generateBarGraph()">Generate Bar Graph</button>
+                `;
+            } else if (chartType === 'scatter') {
+                dataInput.innerHTML = `
+                    <h3>Scatter Plot</h3>
+                    <input type="text" id="scatterTitle" placeholder="Graph Title">
+                    <input type="text" id="scatterXTitle" placeholder="X Axis Title">
+                    <input type="text" id="scatterYTitle" placeholder="Y Axis Title">
+                    <div id="scatterData"></div>
+                    <button onclick="addScatterData()">Add X,Y Point</button>
+                    <button onclick="generateScatterPlot()">Generate Scatter Plot</button>
+                `;
+            } else if (chartType === 'lines') {
+                dataInput.innerHTML = `
+                    <h3>Line Graph</h3>
+                    <input type="text" id="lineTitle" placeholder="Graph Title">
+                    <div id="lineData"></div>
+                    <button onclick="addLineData()">Add Line Points</button>
+                    <button onclick="generateLineGraph()">Generate Line Graph</button>
+                `;
+            }
+        };
+
+        // Pie Chart Functions
+        let pieData = [];
+        function addPieData() {
+            pieData.push({ label: '', value: 0 });
+            updatePieDataInput();
+        }
+        function updatePieDataInput() {
+            const pieDataDiv = document.getElementById('pieData');
+            pieDataDiv.innerHTML = '';
+            pieData.forEach((data, index) => {
+                pieDataDiv.innerHTML += `
+                    <div>
+                        <input type="text" placeholder="Label" value="${data.label}" oninput="updatePieLabel(${index}, this.value)">
+                        <input type="number" placeholder="Value" value="${data.value}" oninput="updatePieValue(${index}, this.value)">
+                        <button onclick="removePieData(${index})">Remove</button>
+                    </div>
+                `;
+            });
+        }
+        function updatePieLabel(index, value) { pieData[index].label = value; }
+        function updatePieValue(index, value) { pieData[index].value = Number(value); }
+        function removePieData(index) { pieData.splice(index, 1); updatePieDataInput(); }
+        function generatePieChart() {
+            const values = pieData.map(d => d.value);
+            const labels = pieData.map(d => d.label);
+            const trace = {
+                type: 'pie',
+                labels: labels,
+                values: values
+            };
+            const layout = { title: 'Pie Chart' };
+            Plotly.newPlot('plot', [trace], layout);
+        }
+
+        // Box Plot Functions
+        function generateBoxPlot() {
+            const data = document.getElementById('boxData').value.split(',').map(Number).filter(n => !isNaN(n));
+            const trace = { type: 'box', y: data, boxpoints: 'all', jitter: 0.5, pointpos: -1.8 };
+            const layout = { title: 'Box and Whisker Plot', yaxis: { title: 'Values' } };
+            Plotly.newPlot('plot', [trace], layout);
+        }
+
+        // Bar Graph Functions
+        let barData = [];
+        function addBarData() {
+            barData.push({ category: '', value: 0 });
+            updateBarDataInput();
+        }
+        function updateBarDataInput() {
+            const barDataDiv = document.getElementById('barData');
+            barDataDiv.innerHTML = '';
+            barData.forEach((data, index) => {
+                barDataDiv.innerHTML += `
+                    <div>
+                        <input type="text" placeholder="Category" value="${data.category}" oninput="updateBarCategory(${index}, this.value)">
+                        <input type="number" placeholder="Value" value="${data.value}" oninput="updateBarValue(${index}, this.value)">
+                        <button onclick="removeBarData(${index})">Remove</button>
+                    </div>
+                `;
+            });
+        }
+        function updateBarCategory(index, value) { barData[index].category = value; }
+        function updateBarValue(index, value) { barData[index].value = Number(value); }
+        function removeBarData(index) { barData.splice(index, 1); updateBarDataInput(); }
+        function generateBarGraph() {
+            const categories = barData.map(d => d.category);
+            const values = barData.map(d => d.value);
+            const title = document.getElementById('barTitle').value;
+
+            const trace = { x: categories, y: values, type: 'bar' };
+            const layout = {
+                title: title,
+                xaxis: { title: document.getElementById('xAxisTitle').value },
+                yaxis: { title: document.getElementById('yAxisTitle').value }
+            };
+            Plotly.newPlot('plot', [trace], layout);
+        }
+
+        // Scatter Plot Functions
+        let scatterData = [];
+        function addScatterData() {
+            scatterData.push({ x: '', y: '' });
+            updateScatterDataInput();
+        }
+        function updateScatterDataInput() {
+            const scatterDataDiv = document.getElementById('scatterData');
+            scatterDataDiv.innerHTML = '';
+            scatterData.forEach((data, index) => {
+                scatterDataDiv.innerHTML += `
+                    <div>
+                        <input type="number" placeholder="X Value" value="${data.x}" oninput="updateScatterX(${index}, this.value)">
+                        <input type="number" placeholder="Y Value" value="${data.y}" oninput="updateScatterY(${index}, this.value)">
+                        <button onclick="removeScatterData(${index})">Remove</button>
+                    </div>
+                `;
+            });
+        }
+        function updateScatterX(index, value) { scatterData[index].x = Number(value); }
+        function updateScatterY(index, value) { scatterData[index].y = Number(value); }
+        function removeScatterData(index) { scatterData.splice(index, 1); updateScatterDataInput(); }
+        function generateScatterPlot() {
+            const xValues = scatterData.map(d => d.x);
+            const yValues = scatterData.map(d => d.y);
+            const title = document.getElementById('scatterTitle').value;
+            const trace = { x: xValues, y: yValues, mode: 'markers', type: 'scatter', name: 'Data Points' };
+
+            // Line of best fit
+            const xMean = xValues.reduce((sum, val) => sum + val, 0) / xValues.length;
+            const yMean = yValues.reduce((sum, val) => sum + val, 0) / yValues.length;
+            const slope = xValues.reduce((sum, val, i) => sum + (val - xMean) * (yValues[i] - yMean), 0) /
+                          xValues.reduce((sum, val) => sum + (val - xMean) ** 2, 0);
+            const intercept = yMean - slope * xMean;
+            const lineX = [Math.min(...xValues), Math.max(...xValues)];
+            const lineY = lineX.map(x => slope * x + intercept);
+            const lineTrace = { x: lineX, y: lineY, mode: 'lines', type: 'scatter', line: { color: 'red' }, name: 'Line of Best Fit' };
+
+            const layout = { title: title, xaxis: { title: document.getElementById('scatterXTitle').value }, yaxis: { title: document.getElementById('scatterYTitle').value } };
+            Plotly.newPlot('plot', [trace, lineTrace], layout);
+        }
+
+        // Line Graph Functions
+        let lineData = [];
+        function addLineData() {
+            lineData.push({ x1: '', y1: '', x2: '', y2: '' });
+            updateLineDataInput();
+        }
+        function updateLineDataInput() {
+            const lineDataDiv = document.getElementById('lineData');
+            lineDataDiv.innerHTML = '';
+            lineData.forEach((data, index) => {
+                lineDataDiv.innerHTML += `
+                    <div>
+                        <input type="number" placeholder="X1" value="${data.x1}" oninput="updateLineX1(${index}, this.value)">
+                        <input type="number" placeholder="Y1" value="${data.y1}" oninput="updateLineY1(${index}, this.value)">
+                        <input type="number" placeholder="X2" value="${data.x2}" oninput="updateLineX2(${index}, this.value)">
+                        <input type="number" placeholder="Y2" value="${data.y2}" oninput="updateLineY2(${index}, this.value)">
+                        <button onclick="removeLineData(${index})">Remove</button>
+                    </div>
+                `;
+            });
+        }
+        function updateLineX1(index, value) { lineData[index].x1 = Number(value); }
+        function updateLineY1(index, value) { lineData[index].y1 = Number(value); }
+        function updateLineX2(index, value) { lineData[index].x2 = Number(value); }
+        function updateLineY2(index, value) { lineData[index].y2 = Number(value); }
+        function removeLineData(index) { lineData.splice(index, 1); updateLineDataInput(); }
+        function generateLineGraph() {
+            const traces = lineData.map((line, index) => {
+                const trace = {
+                    x: [line.x1, line.x2],
+                    y: [line.y1, line.y2],
+                    mode: 'lines+markers',
+                    name: `Line ${index + 1}`,
+                    line: { shape: 'linear' }
+                };
+                return trace;
+            });
+
+            const intersectionPoints = findIntersections(traces);
+            const layout = { title: document.getElementById('lineTitle').value };
+            Plotly.newPlot('plot', [...traces, ...intersectionPoints], layout);
+        }
+
+        function findIntersections(traces) {
+            const intersectionPoints = [];
+            for (let i = 0; i < traces.length; i++) {
+                for (let j = i + 1; j < traces.length; j++) {
+                    const x1 = traces[i].x[0], y1 = traces[i].y[0], x2 = traces[i].x[1], y2 = traces[i].y[1];
+                    const x3 = traces[j].x[0], y3 = traces[j].y[0], x4 = traces[j].x[1], y4 = traces[j].y[1];
+
+                    const denom = (x1 - x2) * (y3 - y4) - (y1 - y2) * (x3 - x4);
+                    if (denom !== 0) {
+                        const px = ((x1 * y2 - y1 * x2) * (x3 - x4) - (x1 - x2) * (x3 * y4 - y3 * x4)) / denom;
+                        const py = ((x1 * y2 - y1 * x2) * (y3 - y4) - (y1 - y2) * (x3 * y4 - y3 * x4)) / denom;
+                        intersectionPoints.push({ x: px, y: py });
+                    }
+                }
+            }
+            return intersectionPoints.map(point => ({
+                x: [point.x], y: [point.y], mode: 'markers', type: 'scatter', name: 'Intersection', marker: { color: 'orange', size: 10 }
+            }));
+        }
+
+        // Statistics Functions
+        function calculateStats() {
+            const data = document.getElementById('statsInput').value.split(',').map(Number).filter(n => !isNaN(n));
+            if (data.length === 0) {
+                document.getElementById('statsOutput').innerHTML = 'No valid data entered.';
+                return;
+            }
+            const mean = data.reduce((sum, value) => sum + value, 0) / data.length;
+            const median = getMedian(data);
+            const mode = getMode(data);
+            const range = Math.max(...data) - Math.min(...data);
+            const outliers = data.filter(x => x < mean - 1.5 * getIQR(data) || x > mean + 1.5 * getIQR(data));
+            const [q1, q2, q3] = getQuartiles(data);
+            const iqr = q3 - q1;
+
+            document.getElementById('statsOutput').innerHTML = `
+                Mean: ${mean.toFixed(2)}<br>
+                Median: ${median}<br>
+                Mode: ${mode.join(', ')}<br>
+                Range: ${range}<br>
+                Outliers: ${outliers.join(', ')}<br>
+                IQR: ${iqr}<br>
+                Q1: ${q1}<br>
+                Q2 (Median): ${q2}<br>
+                Q3: ${q3}<br>
+            `;
+        }
+
+        function getMedian(data) {
+            const sorted = [...data].sort((a, b) => a - b);
+            const mid = Math.floor(sorted.length / 2);
+            return sorted.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid];
+        }
+
+        function getMode(data) {
+            const frequency = {};
+            data.forEach(num => frequency[num] = (frequency[num] || 0) + 1);
+            const maxFreq = Math.max(...Object.values(frequency));
+            return Object.keys(frequency).filter(num => frequency[num] === maxFreq).map(Number);
+        }
+
+        function getQuartiles(data) {
+            const sorted = [...data].sort((a, b) => a - b);
+            const q2 = getMedian(sorted);
+            const q1 = getMedian(sorted.slice(0, Math.floor(sorted.length / 2)));
+            const q3 = getMedian(sorted.slice(Math.ceil(sorted.length / 2)));
+            return [q1, q2, q3];
+        }
+
+        function getIQR(data) {
+            const [q1, , q3] = getQuartiles(data);
+            return q3 - q1;
+        }
+    </script>
+</body>
+
+</html>

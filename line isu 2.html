@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multi-Line Graph with Details</title>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background-color: #f4f4f4; }
+        h1 { text-align: center; color: #333; }
+        #chartOptions, #dataInput, #info { margin: 20px; padding: 20px; background: white; border-radius: 8px; box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); }
+        input, button { width: 100%; margin: 10px 0; padding: 10px; border: 1px solid #ddd; border-radius: 4px; }
+        button { background-color: #5cb85c; color: white; border: none; cursor: pointer; }
+        button:hover { background-color: #4cae4c; }
+        #plot { margin: 20px; }
+        #info { background-color: #e7f3fe; border-left: 6px solid #2196F3; padding: 10px; }
+    </style>
+</head>
+<body>
+
+    <h1>Multi-Line Graph with Details</h1>
+    
+    <div id="chartOptions">
+        <h3>Input Line Points</h3>
+        <div id="dataInput"></div>
+        <button onclick="addLineData()">Add Line Points</button>
+        <button onclick="generateLineGraph()">Generate Line Graph</button>
+    </div>
+    
+    <div id="plot"></div>
+    <div id="info"></div>
+
+    <script>
+        let lineData = [];
+
+        function addLineData() {
+            lineData.push({ x1: '', y1: '', x2: '', y2: '' });
+            updateLineDataInput();
+        }
+
+        function updateLineDataInput() {
+            const lineDataDiv = document.getElementById('dataInput');
+            lineDataDiv.innerHTML = '';
+            lineData.forEach((data, index) => {
+                lineDataDiv.innerHTML += `
+                    <div>
+                        <input type="number" placeholder="X1" value="${data.x1}" oninput="updateLineX1(${index}, this.value)">
+                        <input type="number" placeholder="Y1" value="${data.y1}" oninput="updateLineY1(${index}, this.value)">
+                        <input type="number" placeholder="X2" value="${data.x2}" oninput="updateLineX2(${index}, this.value)">
+                        <input type="number" placeholder="Y2" value="${data.y2}" oninput="updateLineY2(${index}, this.value)">
+                        <button onclick="removeLineData(${index})">Remove</button>
+                    </div>
+                `;
+            });
+        }
+
+        function updateLineX1(index, value) { lineData[index].x1 = Number(value); }
+        function updateLineY1(index, value) { lineData[index].y1 = Number(value); }
+        function updateLineX2(index, value) { lineData[index].x2 = Number(value); }
+        function updateLineY2(index, value) { lineData[index].y2 = Number(value); }
+        function removeLineData(index) { lineData.splice(index, 1); updateLineDataInput(); }
+
+        function generateLineGraph() {
+            const traces = [];
+            let infoHtml = '';
+            const intersectionPoints = [];
+
+            lineData.forEach((line, index) => {
+                const { x1, y1, x2, y2 } = line;
+
+                // Calculate slope, angle, distance, midpoint, intercepts
+                const dx = x2 - x1;
+                const dy = y2 - y1;
+                const slope = dy / dx;
+                const angle = Math.atan(slope) * (180 / Math.PI); // Convert to degrees
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                const midpoint = `(${((x1 + x2) / 2).toFixed(2)}, ${((y1 + y2) / 2).toFixed(2)})`;
+                const directionVector = `[${dx}, ${dy}]`;
+                const yIntercept = y1 - slope * x1;
+                const xIntercept = -yIntercept / slope;
+                const slopeEquation = `y = ${slope.toFixed(2)}x + ${yIntercept.toFixed(2)}`;
+
+                // Prepare line data for plotting
+                const extendedLineX = [-10, 10]; // Extend the line across the graph
+                const extendedLineY = extendedLineX.map(x => slope * (x - x1) + y1);
+
+                traces.push({
+                    x: extendedLineX,
+                    y: extendedLineY,
+                    mode: 'lines+markers',
+                    name: `Line ${index + 1}`,
+                    line: { shape: 'linear' },
+                });
+
+                // Append information
+                infoHtml += `
+                    <h4>Line ${index + 1}</h4>
+                    <p>Slope: ${slope.toFixed(2)}</p>
+                    <p>Slope Equation: ${slopeEquation}</p>
+                    <p>Distance: ${distance.toFixed(2)}</p>
+                    <p>Midpoint: ${midpoint}</p>
+                    <p>Angle: ${angle.toFixed(2)}°</p>
+                    <p>Direction Vector: ${directionVector}</p>
+                    <p>X-Intercept: ${xIntercept.toFixed(2)}</p>
+                    <p>Y-Intercept: ${yIntercept.toFixed(2)}</p>
+                    <hr>
+                `;
+            });
+
+            // Calculate intersections
+            for (let i = 0; i < lineData.length; i++) {
+                for (let j = i + 1; j < lineData.length; j++) {
+                    const line1 = lineData[i];
+                    const line2 = lineData[j];
+
+                    const denom = (line1.x1 - line1.x2) * (line2.y1 - line2.y2) - (line1.y1 - line1.y2) * (line2.x1 - line2.x2);
+                    if (denom !== 0) {
+                        const px = ((line1.x1 * line1.y2 - line1.y1 * line1.x2) * (line2.x1 - line2.x2) - (line1.x1 - line1.x2) * (line2.x1 * line2.y2 - line2.y1 * line2.x2)) / denom;
+                        const py = ((line1.x1 * line1.y2 - line1.y1 * line1.x2) * (line2.y1 - line2.y2) - (line1.y1 - line1.y2) * (line2.x1 * line2.y2 - line2.y1 * line2.x2)) / denom;
+
+                        intersectionPoints.push({ x: px, y: py });
+                    }
+                }
+            }
+
+            const layout = { title: 'Multi-Line Graph', xaxis: { range: [-10, 10] }, yaxis: { range: [-10, 10] } };
+            Plotly.newPlot('plot', traces, layout);
+            document.getElementById('info').innerHTML = infoHtml || 'No lines to display.';
+
+            // Display intersection points
+            if (intersectionPoints.length > 0) {
+                infoHtml += '<h4>Intersection Points:</h4>';
+                intersectionPoints.forEach((point, index) => {
+                    infoHtml += `<p>Intersection ${index + 1}: (${point.x.toFixed(2)}, ${point.y.toFixed(2)})</p>`;
+                });
+            } else {
+                infoHtml += '<p>No intersections found.</p>';
+            }
+            document.getElementById('info').innerHTML = infoHtml;
+        }
+    </script>
+</body>
+</html>
